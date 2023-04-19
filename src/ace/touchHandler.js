@@ -169,6 +169,20 @@ export default function addTouchListeners(editor) {
       || $target.classList.contains('ace_fold')
       || $target.classList.contains('ace_inline_button')
     ) {
+      let lineNumber = parseInt($target.textContent, 10);
+      if (isNaN(lineNumber)) {
+        const $closet = $target.closest('.ace_gutter-cell');
+        lineNumber = parseInt($closet.textContent, 10);
+      }
+
+      if (isNaN(lineNumber)) {
+        return;
+      }
+
+      // if active line is not the same as clicked line
+      if (editor.selection.lead.row !== lineNumber - 1) {
+        editor.gotoLine(lineNumber);
+      }
       return;
     }
 
@@ -837,30 +851,11 @@ export default function addTouchListeners(editor) {
       items.push(item);
     });
 
-    const firstFour = items.slice(0, 4);
-    const rest = items.slice(4);
-
-    firstFour.forEach(({ onclick, text }) => {
+    items.forEach(({ onclick, text }) => {
       $menu.append(
         <div onclick={onclick}>{text}</div>
       );
     });
-
-    if (rest.length) {
-      const showMoreMenu = async () => {
-        try {
-          const res = await dialogs.select(strings.more, rest.map(({ text }, i) => ([i, text])));
-          rest[res].onclick();
-        } catch (error) {
-
-        }
-      };
-      $menu.append(
-        <div onclick={showMoreMenu}>
-          <span className="icon more_vert"></span>
-        </div>
-      );
-    }
   }
 
   /**

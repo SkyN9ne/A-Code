@@ -1,4 +1,3 @@
-import tag from 'html-tag-js';
 import tile from '../tile';
 
 export default class WCPage extends HTMLElement {
@@ -7,12 +6,16 @@ export default class WCPage extends HTMLElement {
   #on = {
     hide: [],
     show: [],
+    willconnect: [],
+    willdisconnect: [],
   };
   #append;
   handler;
   onhide;
   onconnect;
   ondisconnect;
+  onwillconnect;
+  onwilldisconnect;
 
   constructor() {
     super();
@@ -26,14 +29,27 @@ export default class WCPage extends HTMLElement {
     this.on = this.on.bind(this);
     this.off = this.off.bind(this);
 
+    this.handler.onReplace = () => {
+      if (typeof this.onwilldisconnect === 'function') {
+        this.onwilldisconnect();
+      }
 
-    this.#leadBtn = tag('span', {
-      className: 'icon arrow_back',
-      onclick: () => this.hide.call(this),
-      attr: {
-        action: 'go-back',
-      },
-    });
+      this.#on.willdisconnect.forEach(cb => cb.call(this));
+    };
+
+    this.handler.onRestore = () => {
+      if (typeof this.onwillconnect === 'function') {
+        this.onwillconnect();
+      }
+
+      this.#on.willconnect.forEach(cb => cb.call(this));
+    };
+
+    this.#leadBtn = <span
+      className='icon arrow_back'
+      onclick={() => this.hide.call(this)}
+      attr-action='go-back'
+    ></span>;
 
     this.#header = tile({
       type: 'header',
@@ -169,9 +185,7 @@ export default class WCPage extends HTMLElement {
   #addHeaderOrAssignHeader() {
     if (!this.classList.contains('primary')) {
       this.#append(this.#header);
-      this.#append(tag('div', {
-        className: 'main',
-      }));
+      this.#append(<div className='main'></div>);
     } else {
       this.#header = this.get('header');
       if (this.#header) {
@@ -184,7 +198,8 @@ export default class WCPage extends HTMLElement {
 class PageHandler {
   $el;
   $replacement;
-  onRemove;
+  onRestore;
+  onReplace;
 
   /**
    * 
@@ -196,7 +211,7 @@ class PageHandler {
     this.onhide = this.onhide.bind(this);
     this.onshow = this.onshow.bind(this);
 
-    this.$replacement = tag('span', { className: 'page-replacement' });
+    this.$replacement = <span className='page-replacement'></span>;
     this.$replacement.handler = this;
 
     this.$el.on('hide', this.onhide);
@@ -209,6 +224,7 @@ class PageHandler {
   replaceEl() {
     this.$el.off('hide', this.onhide);
     if (!this.$el.isConnected || this.$replacement.isConnected) return;
+    if (typeof this.onReplace === 'function') this.onReplace();
     this.$el.parentElement.replaceChild(this.$replacement, this.$el);
     this.$el.classList.add('no-transition');
   }
@@ -218,6 +234,7 @@ class PageHandler {
    */
   restoreEl() {
     if (this.$el.isConnected || !this.$replacement.isConnected) return;
+    if (typeof this.onRestore === 'function') this.onRestore();
     this.$el.off('hide', this.onhide);
     this.$replacement.parentElement.replaceChild(this.$el, this.$replacement);
     this.$el.on('hide', this.onhide);
